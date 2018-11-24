@@ -1,0 +1,6 @@
+flask
+pytest
+pytest-pep8
+requests
+gunicorn
+sphinx
