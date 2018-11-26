@@ -1,7 +1,11 @@
+# IMPORTS
 from flask import Flask, jsonify, request
 import logging.handlers
 import datetime
+from mongoSetup import Patient
+from pymodm import errors
 
+# FLASK SERVER SETUP
 app = Flask(__name__)
 formatter = logging.Formatter(
     "[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
@@ -13,6 +17,7 @@ handler.setLevel("DEBUG")
 app.logger.addHandler(handler)
 
 
+# SERVER ENDPOINTS
 @app.route("/api/new_patient", methods=["POST"])
 def post_new_patient():
     """ Registers a new patient with the server, and allows for future heart
@@ -36,10 +41,12 @@ def post_new_patient():
         return jsonify("Error 400: Invalid entry in patient data dict."), 400
     except TypeError:
         return jsonify("Error 400: Attending email not of type String."), 400
-    data_for_server = cleared_patient_data
-    data_for_server["heart_rates"] = []
-    data_for_server["timestamps"] = []
-    # Insert MongoDB POST code here
+    patient = Patient(cleared_patient_data["patient_id"],
+                      attending_email=cleared_patient_data["attending_email"],
+                      age=cleared_patient_data["user_age"],
+                      heart_rates=[],
+                      timestamps=[])
+    patient.save()
     return jsonify(cleared_patient_data), 200
 
 
@@ -57,7 +64,6 @@ def post_heart_rate():
     Otherwise, it is an error message serialized as JSON.
     """
     heart_rate = request.get_json()
-    # from helperFunctions import check_heart_rate
     try:
         cleared_heart_rate = check_heart_rate(heart_rate)
         cleared_heart_rate["timestamp"] = datetime.datetime.now()
@@ -65,7 +71,19 @@ def post_heart_rate():
         return jsonify("Error 400: Patient data dictionary missing keys."), 400
     except ValueError:
         return jsonify("Error 400: Invalid entry in patient data dict."), 400
-    # Insert MongoDB GET/UPDATE code here
+    try:
+        patient = Patient.objects.raw({"_id": cleared_heart_rate["patient_id"]
+                                       }).first()
+    except errors.DoesNotExist:
+        return jsonify("Error 404: Patient with the requested ID does not "
+                       "exist."), 404
+    hrs = patient.heart_rates
+    hrs.append(cleared_heart_rate["heart_rate"])
+    patient.heart_rates = hrs
+    tss = patient.timestamps
+    tss.append(cleared_heart_rate["timestamp"])
+    patient.timestamps = tss
+    patient.save()
     return jsonify(cleared_heart_rate), 200
 
 
@@ -83,9 +101,22 @@ def get_status(patient_id):
     of the most recent measurement. Otherwise, it is an error message
     serialized as JSON.
     """
-    # insert MongoDB GET code here for most recent heart rate
-    # call is_tachycardic here; returns this output, timestamp,
-    # and HTTP status code
+    try:
+        patient = Patient.objects.raw({"_id": patient_id}).first()
+    except errors.DoesNotExist:
+        return jsonify("Error 404: Patient with the requested ID does not "
+                       "exist."), 404
+    try:
+        hrs = patient.heart_rates
+        newest_hr = hrs[len(hrs)-1]
+        tss = patient.timestamps
+        newest_timestamp = tss[len(tss)-1]
+    except IndexError:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
+    age = patient.age
+    status = is_tachycardic(newest_hr, age)
+    return jsonify({"Tachycardia status": status,
+                    "Timestamp": newest_timestamp}), 200
 
 
 @app.route("/api/heart_rate/<patient_id>", methods=["GET"])
@@ -97,8 +128,12 @@ def get_heart_rates(patient_id):
     code.  If no errors raised, the first entry is a list of heart rates
     serialized as JSON.  Otherwise, it is an error message serialized as JSON.
     """
-    # insert MongoDB GET code here for the list of heart rates
-    # returns this list and HTTP status code
+    try:
+        patient = Patient.objects.raw({"_id": patient_id}).first()
+    except errors.DoesNotExist:
+        return jsonify("Error 404: Patient with the requested ID does not "
+                       "exist."), 404
+    return jsonify(patient.heart_rates), 200
 
 
 @app.route("/api/heart_rate/average/<patient_id>", methods=["GET"])
@@ -112,8 +147,17 @@ def get_heart_rate_avg(patient_id):
     average of the patient's past HR measurements, serialized as JSON.
     Otherwise, it is an error message serialized as JSON.
     """
-    # insert MongoDB GET code here for the list of heart rates
-    # returns this value and HTTP status code
+    try:
+        patient = Patient.objects.raw({"_id": patient_id}).first()
+    except errors.DoesNotExist:
+        return jsonify("Error 404: Patient with the requested ID does not "
+                       "exist."), 404
+    try:
+        hrs = patient.heart_rates
+        avg_hr = sum(hrs)/len(hrs)
+    except ZeroDivisionError:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
+    return jsonify(avg_hr), 200
 
 
 @app.route("/api/heart_rate/interval_average", methods=["POST"])
@@ -130,12 +174,28 @@ def get_heart_rate_interval_avg():
     serialized as JSON.  Otherwise, it is an error message serialized as JSON.
     """
     avg_request_dict = request.get_json()
-    cleared_avg_request_dict = check_avg_request_dict(avg_request_dict)
-    # insert MongoDB GET code here for the list of heart rates
-    # function to average the HRs
-    # returns this value and HTTP status code
+    cleared = check_avg_request_dict(avg_request_dict)
+    try:
+        patient = Patient.objects.raw({"_id": cleared["patient_id"]}).first()
+    except errors.DoesNotExist:
+        return jsonify("Error 404: Patient with the requested ID does not "
+                       "exist."), 404
+    start_index = 0
+    try:
+        for index, ts in enumerate(patient.timestamps):
+            if ts < cleared["heart_rate_average_since"]:
+                start_index = index
+                break
+        hrs = patient.heart_rates[start_index:]
+        avg_hr = sum(hrs)/len(hrs)
+    except ZeroDivisionError:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
+    except IndexError:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
+    return jsonify(avg_hr), 200
 
 
+# HELPER FUNCTIONS
 def check_patient_data(patient_data):
     """ Checks to see that the input for the /api/new_patient endpoint is
     valid, i.e. a dictionary with the correct key-value pairs and types.
@@ -359,3 +419,8 @@ def is_tachycardic(heart_rate, age):
             return True
         else:
             return False
+
+
+# INSTRUCTIONS FOR CALLING DRIVER
+if __name__ == "__main__":
+    app.run(host="0.0.0.0")
