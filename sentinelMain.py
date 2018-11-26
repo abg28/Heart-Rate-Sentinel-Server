@@ -24,7 +24,7 @@ def post_new_patient():
     """ Registers a new patient with the server, and allows for future heart
     rate measurements from the patient.  The JSON request received should be a
     dictionary with the following key-value pairs:
-        "patient_id" : float representing patient's ID number
+        "patient_id" : int representing patient's ID number
         "attending_email" : String representing attending physician's email
         "user_age" : float representing patient's age in years
 
@@ -56,7 +56,7 @@ def post_heart_rate():
     """ Posts a patient's heart rate to the server along with his/her ID.  The
     JSON request received should be a dictionary with the following key-value
     pairs:
-        "patient_id" : float representing patient's ID number
+        "patient_id" : int representing patient's ID number
         "heart_rate" : float representing current heart rate measurement
 
     :return: A tuple of length 2.  The second entry is always the HTTP status
@@ -100,7 +100,7 @@ def get_status(patient_id):
     previously available heart rate, as well as a timestamp of the most recent
     heart rate.
 
-    :param patient_id: The patient's ID number
+    :param patient_id: int representing the patient's ID number
     :return: A tuple of length 2.  The second entry is always the HTTP status
     code.  If no errors raised, the first entry is a patient data dictionary
     serialized as JSON, containing a String detailing whether or not the
@@ -134,7 +134,7 @@ def get_status(patient_id):
 def get_heart_rates(patient_id):
     """ Returns all previous heart rate measurements for the patient.
 
-    :param patient_id: The patient's ID number
+    :param patient_id: int representing the patient's ID number
     :return: A tuple of length 2.  The second entry is always the HTTP status
     code.  If no errors raised, the first entry is a list of heart rates
     serialized as JSON.  Otherwise, it is an error message serialized as JSON.
@@ -154,7 +154,7 @@ def get_heart_rate_avg(patient_id):
     """ Returns the average of all previous heart rate measurements for the
     patient.
 
-    :param patient_id: The patient's ID number
+    :param patient_id: int representing the patient's ID number
     :return: A tuple of length 2.  The second entry is always the HTTP status
     code.  If no errors raised, the first entry is a float representing the
     average of the patient's past HR measurements, serialized as JSON.
@@ -182,7 +182,7 @@ def get_heart_rate_interval_avg():
     """ Returns the average of all previous heart rate measurements for the
     patient from the inputted timestamp onwards.  The JSON request received
     should be a dictionary with the following key-value pairs:
-        "patient_id" : float representing patient's ID number
+        "patient_id" : int representing patient's ID number
         "heart_rate_average_since" : String representing timestamp
 
     :return: A tuple of length 2.  The second entry is always the HTTP status
@@ -239,8 +239,8 @@ def check_patient_data(patient_data):
             app.logger.error("Boolean detected where it shouldn't be.")
             raise ValueError
 
-    patient_id = float(patient_data["patient_id"])
-    if type(patient_id) != float:
+    patient_id = int(patient_data["patient_id"])
+    if type(patient_id) != int:
         app.logger.error("Patient ID not a number")
         raise ValueError
 
@@ -297,8 +297,8 @@ def check_heart_rate(patient_data):
             app.logger.error("Boolean detected where it shouldn't be.")
             raise ValueError
 
-    patient_id = float(patient_data["patient_id"])
-    if type(patient_id) != float:
+    patient_id = int(patient_data["patient_id"])
+    if type(patient_id) != int:
         app.logger.error("Patient ID not a number")
         raise ValueError
 
@@ -346,8 +346,8 @@ def check_avg_request_dict(patient_data):
             app.logger.error("Boolean detected where it shouldn't be.")
             raise ValueError
 
-    patient_id = float(patient_data["patient_id"])
-    if type(patient_id) != float:
+    patient_id = int(patient_data["patient_id"])
+    if type(patient_id) != int:
         app.logger.error("Patient ID not a number")
         raise ValueError
 
