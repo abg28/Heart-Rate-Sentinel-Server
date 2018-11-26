@@ -453,4 +453,4 @@ def is_tachycardic(heart_rate, age):
 # INSTRUCTIONS FOR CALLING DRIVER
 if __name__ == "__main__":
     connect("mongodb://abg28:GODUKE10@ds225253.mlab.com:25253/bme590")
-    app.run(host="127.0.0.1")
+    app.run(host="0.0.0.0")
