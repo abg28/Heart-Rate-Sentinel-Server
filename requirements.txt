@@ -4,3 +4,4 @@ pytest-pep8
 requests
 gunicorn
 sphinx
+pymodm
