@@ -4,6 +4,7 @@ import logging.handlers
 import datetime
 from mongoSetup import Patient
 from pymodm import errors
+from pymodm import connect
 
 # FLASK SERVER SETUP
 app = Flask(__name__)
@@ -423,4 +424,5 @@ def is_tachycardic(heart_rate, age):
 
 # INSTRUCTIONS FOR CALLING DRIVER
 if __name__ == "__main__":
+    connect("mongodb://abg28:GODUKE10@ds225253.mlab.com:25253/bme590")
     app.run(host="0.0.0.0")
