@@ -67,7 +67,7 @@ def post_heart_rate():
     heart_rate = request.get_json()
     try:
         cleared_heart_rate = check_heart_rate(heart_rate)
-        cleared_heart_rate["timestamp"] = datetime.datetime.now()
+        cleared_heart_rate["timestamp"] = str(datetime.datetime.now())
     except KeyError:
         return jsonify("Error 400: Patient data dictionary missing keys."), 400
     except ValueError:
@@ -108,6 +108,7 @@ def get_status(patient_id):
     of the most recent measurement. Otherwise, it is an error message
     serialized as JSON.
     """
+    patient_id = int(patient_id)
     try:
         patient = Patient.objects.raw({"_id": patient_id}).first()
     except errors.DoesNotExist:
@@ -118,11 +119,11 @@ def get_status(patient_id):
         newest_hr = hrs[len(hrs)-1]
         tss = patient.timestamps
         newest_timestamp = tss[len(tss)-1]
-        if type(newest_hr) == str or type(newest_timestamp) == str:
-            raise TypeError
+        if newest_hr == "begin" or newest_timestamp == "begin":
+            raise ValueError
     except IndexError:
         return jsonify("Error 400: No heart rates have been entered yet."), 400
-    except TypeError:
+    except ValueError:
         return jsonify("Error 400: No heart rates have been entered yet."), 400
     age = patient.age
     status = is_tachycardic(newest_hr, age)
@@ -139,6 +140,7 @@ def get_heart_rates(patient_id):
     code.  If no errors raised, the first entry is a list of heart rates
     serialized as JSON.  Otherwise, it is an error message serialized as JSON.
     """
+    patient_id = int(patient_id)
     try:
         patient = Patient.objects.raw({"_id": patient_id}).first()
     except errors.DoesNotExist:
@@ -160,6 +162,7 @@ def get_heart_rate_avg(patient_id):
     average of the patient's past HR measurements, serialized as JSON.
     Otherwise, it is an error message serialized as JSON.
     """
+    patient_id = int(patient_id)
     try:
         patient = Patient.objects.raw({"_id": patient_id}).first()
     except errors.DoesNotExist:
@@ -191,28 +194,33 @@ def get_heart_rate_interval_avg():
     serialized as JSON.  Otherwise, it is an error message serialized as JSON.
     """
     avg_request_dict = request.get_json()
-    cleared = check_avg_request_dict(avg_request_dict)
+    try:
+        cleared = check_avg_request_dict(avg_request_dict)
+    except KeyError:
+        return jsonify("Error 400: Patient data dictionary missing keys."), 400
+    except ValueError:
+        return jsonify("Error 400: Invalid entry in patient data dict."), 400
+    except TypeError:
+        return jsonify("Error 400: Timestamp not of type String."), 400
     try:
         patient = Patient.objects.raw({"_id": cleared["patient_id"]}).first()
     except errors.DoesNotExist:
         return jsonify("Error 404: Patient with the requested ID does not "
                        "exist."), 404
-    start_index = 0
+    start_index = -999
     try:
         for index, ts in enumerate(patient.timestamps):
-            if ts < cleared["heart_rate_average_since"]:
+            if ts >= cleared["heart_rate_average_since"]:
                 start_index = index
                 break
+            if start_index == -999:
+                return jsonify("Error 400: No heart rates have been entered "
+                               "past that date and time."), 400
         hrs = patient.heart_rates[start_index:]
         avg_hr = sum(hrs)/len(hrs)
     except ZeroDivisionError:
-        return jsonify("Error 400: No heart rates have been entered yet."), 400
-    except IndexError:
-        return jsonify("Error 400: No heart rates have been entered yet."), 400
-    except ValueError:
-        return jsonify("Error 400: No heart rates have been entered yet."), 400
-    except TypeError:
-        return jsonify("Error 400: No heart rates have been entered yet."), 400
+        return jsonify("Error 400: No heart rates have been entered past that "
+                       "date and time."), 400
     return jsonify(avg_hr), 200
 
 
@@ -445,4 +453,4 @@ def is_tachycardic(heart_rate, age):
 # INSTRUCTIONS FOR CALLING DRIVER
 if __name__ == "__main__":
     connect("mongodb://abg28:GODUKE10@ds225253.mlab.com:25253/bme590")
-    app.run(host="0.0.0.0")
+    app.run(host="127.0.0.1")
