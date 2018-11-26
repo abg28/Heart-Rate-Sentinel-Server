@@ -45,8 +45,8 @@ def post_new_patient():
     patient = Patient(cleared_patient_data["patient_id"],
                       attending_email=cleared_patient_data["attending_email"],
                       age=cleared_patient_data["user_age"],
-                      heart_rates=[],
-                      timestamps=[])
+                      heart_rates=["begin"],
+                      timestamps=["begin"])
     patient.save()
     return jsonify(cleared_patient_data), 200
 
@@ -79,11 +79,17 @@ def post_heart_rate():
         return jsonify("Error 404: Patient with the requested ID does not "
                        "exist."), 404
     hrs = patient.heart_rates
-    hrs.append(cleared_heart_rate["heart_rate"])
-    patient.heart_rates = hrs
+    if "begin" in hrs:
+        patient.heart_rates = [cleared_heart_rate["heart_rate"]]
+    else:
+        hrs.append(cleared_heart_rate["heart_rate"])
+        patient.heart_rates = hrs
     tss = patient.timestamps
-    tss.append(cleared_heart_rate["timestamp"])
-    patient.timestamps = tss
+    if "begin" in tss:
+        patient.timestamps = [cleared_heart_rate["timestamp"]]
+    else:
+        tss.append(cleared_heart_rate["timestamp"])
+        patient.timestamps = tss
     patient.save()
     return jsonify(cleared_heart_rate), 200
 
