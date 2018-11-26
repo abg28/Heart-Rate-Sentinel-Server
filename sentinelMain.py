@@ -118,7 +118,11 @@ def get_status(patient_id):
         newest_hr = hrs[len(hrs)-1]
         tss = patient.timestamps
         newest_timestamp = tss[len(tss)-1]
+        if type(newest_hr) == str or type(newest_timestamp) == str:
+            raise TypeError
     except IndexError:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
+    except TypeError:
         return jsonify("Error 400: No heart rates have been entered yet."), 400
     age = patient.age
     status = is_tachycardic(newest_hr, age)
@@ -140,6 +144,8 @@ def get_heart_rates(patient_id):
     except errors.DoesNotExist:
         return jsonify("Error 404: Patient with the requested ID does not "
                        "exist."), 404
+    if type(patient.heart_rates[0]) == str:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
     return jsonify(patient.heart_rates), 200
 
 
@@ -163,6 +169,10 @@ def get_heart_rate_avg(patient_id):
         hrs = patient.heart_rates
         avg_hr = sum(hrs)/len(hrs)
     except ZeroDivisionError:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
+    except ValueError:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
+    except TypeError:
         return jsonify("Error 400: No heart rates have been entered yet."), 400
     return jsonify(avg_hr), 200
 
@@ -198,6 +208,10 @@ def get_heart_rate_interval_avg():
     except ZeroDivisionError:
         return jsonify("Error 400: No heart rates have been entered yet."), 400
     except IndexError:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
+    except ValueError:
+        return jsonify("Error 400: No heart rates have been entered yet."), 400
+    except TypeError:
         return jsonify("Error 400: No heart rates have been entered yet."), 400
     return jsonify(avg_hr), 200
 
