@@ -9,4 +9,3 @@ class Patient(MongoModel):
                                    MongoBaseField(blank=True))
     timestamps = fields.ListField(field=base.fields.
                                   MongoBaseField(blank=True))
-
